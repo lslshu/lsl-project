@@ -1,0 +1,48 @@
+jenkins的安装
+
+jenkins官方https://jenkins.io/zh/
+第一种是直接官方仓库下载然后需要进行安装
+sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+第二种使用rpm安装，下载安装指定版本
+各个版本地址 https://pkg.jenkins.io/
+wget https://pkg.jenkins.io/redhat/jenkins-2.180-1.1.noarch.rpm
+rpm -ivh jenkins-2.180-1.1.noarch.rpm
+
+
+yum install jenkins
+
+配置jenkins
+vim /etc/sysconfig/jenkins
+
+#为了权限不出现各种问题，user改为root
+JENKINS_USER="root"
+#jenkins端口
+JENKINS_PORT="8080"
+
+
+修改目录权限
+chown -R root:root /var/lib/jenkins
+chown -R root:root /var/cache/jenkins
+chown -R root:root /var/log/jenkins
+
+重新启动jenkins
+service jenkins restart
+
+docker的安装
+
+安装必要的工具
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+添加软件源信息
+sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+更新缓存
+sudo yum makecache fast
+安装 Docker-ce
+sudo yum -y install docker-ce
+启动 Docker 后台服务
+sudo systemctl start docker
+
+k8s-master的安装
+
+
+
