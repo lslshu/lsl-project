@@ -1,0 +1,70 @@
+使用nginx+php+mysql搭建wordpress
+
+进入nginx官网下载nginx
+wget http://nginx.org/download/nginx-1.16.0.tar.gz
+
+nginx安装就不简述了，在ng配置中
+修改nginx配置
+location ~ \.php$ {
+            root           html;
+            fastcgi_pass   127.0.0.1:9000;
+            fastcgi_index  index.php;
+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            include        fastcgi_params;
+        }
+
+
+安装php7.0 
+更新源centos6
+rpm -Uvh http://mirror.webtatic.com/yum/el6/latest.rpm
+rpm -Uvh http://mirrors.ustc.edu.cn/epel/epel-release-latest-6.noarch.rpm
+更新源centos7
+rpm -Uvh https://mirror.webtatic.com/yum/el7/epel-release.rpm
+rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
+
+yum update
+yum clean all
+
+yum install php70w php70w-fpm php70w-mysql php70w-mbstring php70w-gd php70w-dom
+
+centos7安装mysql
+wget -i -c http://dev.mysql.com/get/mysql57-community-release-el7-10.noarch.rpm
+yum -y install mysql57-community-release-el7-10.noarch.rpm
+
+yum -y install mysql-community-server
+systemctl start  mysqld.service
+
+mysql -r -p
+vim /etc/my.cnf
+在mysqld中添加skip-grant-tables然后重启
+use mysql;
+update mysql.user set authentication_string=password('*******') where user='*******';
+
+set password for root@localhost = password('*****');  
+mysqladmin -u root password '****'
+create database wordpress;
+flush privileges;
+
+修改完后删除my.cnf中skip内容
+systemctl restart  mysqld.service
+
+
+下载wordpress
+wget https://cn.wordpress.org/latest-zh_CN.tar.gz
+
+tar -zxvf latest-zh_CN.tar.gz 
+cp -r wordpress/* /usr/local/nginx/html/
+chmod -R 777 /usr/local/nginx/html/*
+
+
+vim 
+修改数据库连接，添加中文和下载权限
+define('WPLANG', 'zh_CN');
+define("FS_METHOD","direct");
+define("FS_CHMOD_DIR", 0777);
+define("FS_CHMOD_FILE", 0777);
+
+
+cp wp-config-sample.php wp-config.php
+
+
