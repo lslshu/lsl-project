@@ -199,3 +199,30 @@ apt-get install -y build-essential
 wget -q  https://raw.githubusercontent.com/Thnineer/Bash/master/ffmpeg.sh && chmod +x ffmpeg.sh && ./ffmpeg.sh
 
 
+
+
+nginx在docker运行需要关闭daemon选项.
+rtmp->server->application为具体的直播应用,hls是我的直播应用名称，可以根据实际情况修改。
+
+推流测试
+推流地址
+rtmp://localhost:1935/hls/demo
+hls为上面配置的application名称，demo是直播名称，客户端使用http://localhost/hls/demo.m3u8进行播放
+
+视频推流
+ffmpeg -re -i a.mp4 -vcodec copy -f flv rtmp://localhost:1935/hls/demo
+web中播放
+
+<video src="http://localhost/hls/demo.m3u8" controls></video>
+音频推流
+ffmpeg -re -i a.mp3 -acodec aac -f flv rtmp://localhost:1935/hls/demo
+web中播放
+
+<audio src="http://localhost/hls/demo.m3u8" controls></audio>
+推流与播放地址说明
+假设nginx配置http端口为80,http目录为hls,rtmp端口为1935,application名称为hls,需要播放的直播名称为demo
+推流地址rtmp://localhost:1935/hls/demo
+播放地址http://localhost/hls/demo.m3u8
+重要说明
+如果没有直播推流，nginx是不会产生m3u8文件的，这点需要注意!
+
