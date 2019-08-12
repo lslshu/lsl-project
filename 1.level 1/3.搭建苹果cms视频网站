@@ -1,0 +1,170 @@
+nginx的安装
+wget http://nginx.org/download/nginx-1.14.2.tar.gz
+解压压缩包
+tar -zxvf nginx-1.14.2.tar.gz
+cd nginx-1.14.2 
+依赖包
+yum install pcre pcre-devel zlib zlib-devel openssl openssl-devel
+创建用户和组别
+groupadd www
+useradd -g www www
+配置
+./configure --prefix=/usr/local/nginx --without-http_memcached_module --user=www --group=www --with-http_stub_status_module --with-http_ssl_module --with-http_gzip_static_module
+编译安装
+make && make install 
+安装nginx开机启动配置文件
+/usr/local/nginx/sbin/nginx
+vim /etc/init.d/nginx
+
+#!/bin/bash
+# chkconfig: - 30 21
+# description: http service.
+# Source Function Library
+. /etc/init.d/functions
+# Nginx Settings
+NGINX_SBIN="/usr/local/nginx/sbin/nginx"
+NGINX_CONF="/usr/local/nginx/conf/nginx.conf"
+NGINX_PID="/usr/local/nginx/logs/nginx.pid"
+RETVAL=0
+prog="Nginx"
+start() {
+echo -n $"Starting $prog: "
+mkdir -p /dev/shm/nginx_temp
+daemon $NGINX_SBIN -c $NGINX_CONF
+RETVAL=$?
+echo
+return $RETVAL
+}
+stop() {
+echo -n $"Stopping $prog: "
+killproc -p $NGINX_PID $NGINX_SBIN -TERM
+rm -rf /dev/shm/nginx_temp
+RETVAL=$?
+echo
+return $RETVAL
+}
+reload(){
+echo -n $"Reloading $prog: "
+killproc -p $NGINX_PID $NGINX_SBIN -HUP
+RETVAL=$?
+echo
+return $RETVAL
+}
+restart(){
+stop
+start
+}
+configtest(){
+$NGINX_SBIN -c $NGINX_CONF -t
+return 0
+}
+case "$1" in
+start)
+start
+;;
+stop)
+stop
+;;
+reload)
+reload
+;;
+restart)
+restart
+;;
+configtest)
+configtest
+;;
+*)
+echo $"Usage: $0 {start|stop|reload| 
+restart|configtest}"
+RETVAL=1
+esac
+exit $RETVAL
+
+安装开机启动
+chkconfig --add /etc/init.d/nginx
+chmod 755 /etc/init.d/nginx
+chkconfig --add nginx
+chkconfig nginx on
+
+
+
+
+安装php7.0 
+更新源centos6
+rpm -Uvh http://mirror.webtatic.com/yum/el6/latest.rpm
+rpm -Uvh http://mirrors.ustc.edu.cn/epel/epel-release-latest-6.noarch.rpm
+更新源centos7
+rpm -Uvh https://mirror.webtatic.com/yum/el7/epel-release.rpm
+rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
+
+yum update
+yum clean all
+
+yum install php70w php70w-fpm php70w-mysql php70w-mbstring php70w-gd php70w-dom
+
+安装mysql
+yum install mysql mysql-server
+
+use mysql;
+set password for root@localhost = password('*****'); 
+create database pingguocms;
+flush privileges;
+
+上传安装包解压安装
+nginx安装完成后登录后台会出现404报错这是因为path_info的原因
+/admin.php/admin/index/index.html
+使用PATH_INFO来代替Rewrite来实现伪静态页面, 另外不少PHP框架也使用PATH_INFO来作为路由载体.
+在Apache中, 当不加配置的时候, 对于PHP脚本, AcceptPathInfo是默认接受的
+
+对于Nginx下, 是不支持PATH INFO的, 也就是它不会默认设置PATH_INFO.
+而因为默认的配置文件对PHP的支持只是很基础的, 所以对于默认配置来说对于上面的访问也会是404, 提示找不到文件出错.
+
+一般来说有俩种解决方法, 第一种就是使用rewrite, 但是这个方法的缺点也是很明显的, 需要把PATH_INFO转换成Query String. 此处就不说明这种方法了~
+
+而, 第二种方法就是我今天要提的, 模拟PATH_INFO:首先 , 我们知道在Nginx中, 是通过对文件名的扩展名匹配, 来决定是否要交给php cgi服务器去解释的. 在nginx.conf中一般都有如下的默认配置段:
+
+location ~ .php$ {
+     fastcgi_index  index.php;
+     fastcgi_pass   127.0.0.1:9000;
+     include        fastcgi_params;
+}
+所以,对于形如/laruence/info.php/pathinfo这样的文件路径, Nginx是不会正确的交给php cgi服务器的. 所以我们需要改写这段配置为:
+
+     location ~ .php {//片段匹配
+     fastcgi_index  index.php;
+     fastcgi_pass   127.0.0.1:9000;
+     include        fastcgi_params;
+}
+现在, 脚本路径已经交由PHP自己处理了，那怎么增加PATH_INFO呢?
+
+首先, 我们需要打开PHP中cgi.fix_pathinfo配置项, 打开这个配置项以后, PHP会去根据CGI规范来检查SCRIPT_FILENAME中那部分是访问脚本和PATH_INFO(ini配置解释), 并根据SCRIPT_NAME来修改PATH_INFO(和PATH_TRANSLATED)为正确的值(其实也就是说明, PHP最初对CGI 1.1的支持并不到位)
+
+然后, 就只要添加一个FASTCGI_PARAM项就好了:
+
+location ~ .php {
+     fastcgi_index  index.php;
+     fastcgi_pass   127.0.0.1:9000;
+     include        fastcgi_params;
+     fastcgi_param  PATH_INFO $fastcgi_script_name;
+}
+
+btw: 当然, 上面的解决方法, 把对路径的分析交给了PHP去处理, 网上也有朋友给出了另外一种配置方法, 这个方法是由Nginx来分析路径(也就不需要fix_pathinfo):
+
+location ~ \.php
+{
+     fastcgi_index index.php;
+     fastcgi_pass 127.0.0.1:9000;
+     include      fastcgi_params;
+     set $path_info "";
+     set $real_script_name $fastcgi_script_name;
+     if ($fastcgi_script_name ~ "^(.+?\.php)(/.+)$") {
+     set $real_script_name $1;
+     set $path_info $2;
+}
+fastcgi_param SCRIPT_FILENAME /var/html/$real_script_name;
+fastcgi_param SCRIPT_NAME $real_script_name;
+fastcgi_param PATH_INFO $path_info;
+}
+
+最近发现的一个安全漏洞(Nginx + PHP CGI的一个可能的安全漏洞)和这个配置有关系, 请大家务必在使用第二种配置的时候,关闭cgi.fix_pathinfo. 
