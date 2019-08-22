@@ -1,0 +1,350 @@
+进入官网下载https://rsync.samba.org/download.html
+下载rsync
+wget https://download.samba.org/pub/rsync/rsync-3.1.3.tar.gz
+tar -zxvf rsync-3.1.3.tar.gz 
+cd rsync-3.1.3
+编译安装
+./configure --prefix=/usr/local/rsync
+make && make install
+
+创建配置文件rsyncd.conf
+touch rsyncd.conf
+vim rsync.conf
+
+port = 873                               #运行时占用的端口
+uid = root                               #以什么用户运行
+gid = root                       
+use chroot = no                          #默认为yes，修改为no，增加对目录文件软连接的备份
+read only = no                           #设置rsync服务端文件为读写权限
+hosts allow=192.168.2.17                 #允许进行数据同步的客户端IP地址，可以设置多个，用英文状态下逗号隔开
+hosts deny=*                             #禁止进行连接数据同步的ip
+max connections = 10                     #最大连接数
+motd file = /etc/rsyncd.motd             #rsync启动时欢迎信息页面文件位置（文件内容自定义）
+lock file=/var/run/rsyncd.lock           #支持max connections参数的锁文件
+log file=/var/log/rsyncd.log             #rsync的日志路径
+pid file = /var/run/rsyncd.pid 
+log format = %t %a %m %f %b
+syslog facility = local3
+timeout = 300                            #超时时间
+
+[test]                                  #模块名称可以设置多个
+list=no                                 #不显示rsync服务端资源列表
+comment = test                          #和模块名称相同
+path = /backup                          #通步过来的数据路径
+ignore errors
+auth users = root                       #连接时需要的用户名
+secrets file = /etc/rsyncd.secrets      #设置一下认证用户名和密码
+
+配置rsyncd.secrets
+vim rsyncd.secrets
+
+root:123456
+
+chmod 600 /usr/local/rsync/rsyncd.secrets #该文件权限必须设置为：600
+
+配置rsyncd.motd
+vim rsync.motd
+#########################
+welcome use rsync service
+#########################
+新建文件夹
+mkdir run log 
+
+启动rsync
+/usr/local/rsync/bin/rsync --daemon --config=/usr/local/rsync/rsyncd.conf
+
+
+[root@162 rsync]# netstat -tnlp
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address               Foreign Address             State       PID/Program name   
+tcp        0      0 127.0.0.1:25                0.0.0.0:*                   LISTEN      2504/master         
+tcp        0      0 0.0.0.0:29608               0.0.0.0:*                   LISTEN      2370/sshd           
+tcp        0      0 0.0.0.0:873                 0.0.0.0:*                   LISTEN      10992/rsync         
+tcp        0      0 ::1:25                      :::*                        LISTEN      2504/master         
+tcp        0      0 :::29608   
+
+设置开机自启
+vim /etc/rc.local
+/usr/local/rsync/bin/rsync --daemon --config=/usr/local/rsync/rsyncd.conf
+
+客户端安装
+yum -y install rsync
+vi /etc/rsyncd.passwd		#建立密码文件
+123456
+chmod 600 /etc/rsyncd.passwd
+
+命令测试
+远程rsync服务器中拷贝文件到本地机。当SRC路径信息包含"::"分隔符时
+启动该模式。
+命令语法：rsync [OPTION]... [USER@]HOST::SRC [DEST] 
+$$ echo "i am html" >> /var/www/html/index.html		#在服务端创建测试文件
+$$ rsync -rlptgozPvu --progress --delete --password-file=/etc/rsyncd.passwd root@serverip::test /tmp
+
+②从本地机器拷贝文件到远程rsync服务器中。当DST路径信息包含"::"分隔符时启动该模式。
+命令语法：rsync [OPTION]... SRC [SRC]... [USER@]HOST::DEST 
+$$ echo "i am htm" >> /tmp/index.htm		#在客户端创建测试文件
+$$ rsync -rlptzPvu --progress --delete --password-file=/etc/rsyncd.passwd /tmp/index.htm root@serverip::test
+
+配置文件详解
+vim rsyncd.conf
+
+log file = /usr/local/rsync/var/rsyncd.log  //日志文件
+pid file = /usr/local/rsync/var/rsyncd.pid  //pid文件路径
+lock file = /usr/local/rsync/var/rsyncd.lock //指定lock文件
+secrets file = /usr/local/rsync/etc/rsyncd.pas  //指定用户密码对文件
+motd file = /usr/local/rsync/etc/rsyncd.motd  //指定欢迎消息文件
+read only = no  //是否只读（若从客户端同步到服务器必须设置为NO）
+hosts allow = 192.168.0.0/16,192.168.10.0/24  //允许的IP段
+list = yes  //是否允许列表
+uid = nobody  //rsync以什么用户身份启动
+gid = nobody  //rsync以什么用户组身份启动
+use chroot = no  //
+max connections = 4  //最大连接数
+
+[bak]  //模块
+path = /bak  //模块目录
+comment = www bak  //描述信息，可以任意填写
+auth users = bak  //认证的用户，服务器必须存在这个系统用户
+
+
+
+
+
+
+
+#######rsync和sersync的文件单向实时自动同步#######
+安装前准备
+服务器1IP：192.168.1.130
+服务器2IP：192.168.1.131
+关闭防火墙和selinux
+setenforce 0
+service iptables stop 
+
+<1>服务端1安装rsync
+yum install rsync xinetd
+修改/etc/xinetd.d/rsync 将disable = yes 改为 no
+如果/etc/xinetd.d/没有rsync，就新建一个rsync文件：
+vi /etc/xinetd.d/rsync
+
+#default: off
+# description: The rsync server is a good addition to an ftp server, as it \
+# allows crc checksumming etc.
+service rsync {
+disable = no
+socket_type = stream
+wait = no
+user = root
+server = /usr/bin/rsync
+server_args = –daemon
+log_on_failure += USERID
+}
+
+配置rsync自启动
+#chkconfig rsync on
+
+配置 /etc/rsyncd.conf (如果没有该文件，就新建文件)
+uid = root
+gid = root
+port = 873
+address = 192.168.1.130
+use chroot = yes
+read only = no
+write only = no
+#list = yes
+hosts allow = 192.168.1.131
+#hosts deny=
+max connections = 5
+motd file = /etc/rsyncd.motd
+pid file = /var/run/rsyncd.pid
+log file = /var/log/rsyncd.log
+lock file = /var/run/rsync.lock
+transfer logging = yes
+log format = %t %a %m %f %b
+syslog facility = local3
+timeout = 300
+[test]
+path = /root/mydata/
+list=yes
+ignore errors
+auth users = seeder
+secrets file = /etc/rsync_server.pass
+
+创建认证文件
+vim /etc/rsync_server.pass 
+seeder:123456
+vim /etc/rsync_client.pass 
+123456
+
+更改文件权限
+chmod 600 /etc/rsync_server.pass
+chmod 600 /etc/rsync_client.pass
+
+在/root目录下创建文件
+mkdir /mydata/
+
+启动rsync
+rsync –daemon –config=/etc/rsyncd.conf
+
+<2>服务端1安装rsync
+yum install rsync xinetd
+修改/etc/xinetd.d/rsync 将disable = yes 改为 no
+如果/etc/xinetd.d/没有rsync，就新建一个rsync文件：
+vi /etc/xinetd.d/rsync
+
+#default: off
+# description: The rsync server is a good addition to an ftp server, as it \
+# allows crc checksumming etc.
+service rsync {
+disable = no
+socket_type = stream
+wait = no
+user = root
+server = /usr/bin/rsync
+server_args = –daemon
+log_on_failure += USERID
+}
+
+配置rsync自启动
+#chkconfig rsync on
+
+配置 /etc/rsyncd.conf (如果没有该文件，就新建文件)
+uid = root
+gid = root
+port = 873
+address = 192.168.1.131
+use chroot = yes
+read only = no
+write only = no
+#list = yes
+hosts allow = 192.168.1.130
+#hosts deny=
+max connections = 5
+motd file = /etc/rsyncd.motd
+pid file = /var/run/rsyncd.pid
+log file = /var/log/rsyncd.log
+lock file = /var/run/rsync.lock
+transfer logging = yes
+log format = %t %a %m %f %b
+syslog facility = local3
+timeout = 300
+[test]
+path = /root/mydata/
+list=yes
+ignore errors
+auth users = seeder
+secrets file = /etc/rsync_server.pass
+
+创建认证文件
+vim /etc/rsync_server.pass 
+seeder:123456
+vim /etc/rsync_client.pass 
+123456
+
+更改文件权限
+chmod 600 /etc/rsync_server.pass
+chmod 600 /etc/rsync_client.pass
+
+在/root目录下创建文件
+mkdir /mydata/
+
+启动rsync
+rsync –daemon –config=/etc/rsyncd.conf
+
+<3>测试rsync同步
+在/root/mydata/目录下创建文件，以供测试
+<1>在服务端1测试
+从本地发送文件
+rsync -avSH –password-file=/etc/rsync_client.pass /root/mydata/ seeder@192.168.1.131::test 
+从服务端2下载文件
+rsync -avSH –password-file=/etc/rsync_client.pass seeder@192.168.1.131::test /root/mydata/
+<2>在服务端2测试
+从本地发送文件
+rsync -avSH –password-file=/etc/rsync_client.pass /root/mydata/ seeder@192.168.1.130::test 
+从服务端1下载文件
+rsync -avSH –password-file=/etc/rsync_client.pass seeder@192.168.1.130::test /root/mydata/
+若以上没有问题则继续下面
+
+<4>安装sersync（服务端1）
+下载sersync
+wget http://xz5.jb51.net:81/201111/tools/sersync_64bit_binary_stable_final.tar.gz
+
+安装sersync
+tar -zxf sersync_64bit_binary_stable_final.tar.gz
+mkdir /usr/local/sersync
+mv GNU-Linux-x86/* /usr/local/sersync
+
+修改配置sersync
+vim confxml.xml
+<?xml version=”1.0″ encoding=”ISO-8859-1″?>
+<head version=”2.5″>
+    <host hostip=”192.168.1.130″ port=”8008″></host>
+    <debug start=”false”/>
+    <files y s t e m xfs=”false”/>
+    <filter start=”false”>
+<exclude expression=”(.*)\.svn”></exclude>
+<exclude expression=”(.*)\.gz”></exclude>
+<exclude expression=”^info/*”></exclude>
+<exclude expression=”^static/*”></exclude>
+    </filter>
+    <inotify>
+<delete start=”true”/>
+<createFolder start=”true”/>
+<createFile start=”false”/>
+<closeWrite start=”true”/>
+<moveFrom start=”true”/>
+<moveTo start=”true”/>
+<attrib start=”false”/>
+<modify start=”false”/>
+    </inotify>
+
+    <sersync>
+<localpath watch=”/root/mydata/”>
+   <remote ip=”192.168.1.131″ name=”test”/>
+   <!–<remote ip=”192.168.8.39″ name=”tongbu”/>–>
+   <!–<remote ip=”192.168.8.40″ name=”tongbu”/>–>
+</localpath>
+<rsync>
+   <commonParams params=”-artuz”/>
+   <auth start=”true” users=”seeder” passwordfile=”/etc/rsync_client.pass”/>
+   <userDefinedPort start=”false” port=”874″/><!– port=874 –>
+   <timeout start=”false” time=”100″/><!– timeout=100 –>
+   <ssh start=”false”/>
+</rsync>
+<failLog path=”/tmp/rsync_fail_log.sh” timeToe x e cute=”60″/><!–default every 60mins e x e cute once–>
+<crontab start=”true” schedule=”600″><!–600mins–>
+   <crontabfilter start=”false”>
+<exclude expression=”*.php”></exclude>
+<exclude expression=”info/*”></exclude>
+   </crontabfilter>
+</crontab>
+<plugin start=”false” name=”command”/>
+    </sersync>
+
+    <plugin name=”command”>
+<param prefix=”/bin/sh” suffix=”” ignoreError=”true”/> <!–prefix /opt/tongbu/mmm.sh suffix–>
+<filter start=”false”>
+   <i n c l u d e expression=”(.*)\.php”/>
+   <i n c l u d e expression=”(.*)\.sh”/>
+</filter>
+    </plugin>
+
+    <plugin name=”socket”>
+<localpath watch=”/opt/tongbu”>
+   <deshost ip=”192.168.138.20″ port=”8009″/>
+</localpath>
+    </plugin>
+    <plugin name=”refreshCDN”>
+<localpath watch=”/data0/htdocs/cms.xoyo.com/site/”>
+   <cdninfo domainname=”ccms.chinacache.com” port=”80″ username=”xxxx” passwd=”xxxx”/>
+   <sendurl base=”http://pic.xoyo.com/cms”/>
+   <regexurl regex=”false” match=”cms.xoyo.com/site([/a-zA-Z0-9]*).xoyo.com/images”/>
+</localpath>
+    </plugin>
+</head>
+启动服务
+
+/usr/local/sersync/sersync2 -d -r -o  /usr/local/sersync/confxml.xml
+
+<5>结果测试:在装有sersync的服务端的/root/mydata/目录下进行文件的添加、删除或者修改动作，同时查看另一服务端的/root/mydata/目录。
+
+
