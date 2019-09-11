@@ -168,3 +168,14 @@ fastcgi_param PATH_INFO $path_info;
 }
 
 最近发现的一个安全漏洞(Nginx + PHP CGI的一个可能的安全漏洞)和这个配置有关系, 请大家务必在使用第二种配置的时候,关闭cgi.fix_pathinfo. 
+
+视频解析接口
+http://jiexi.071811.cc/jx2.php?url=
+http://2gty.com/apiurl/yun.php?url=
+http://api.xyingyu.com/?url=
+http://api.baiyug.vip/index.php?url=
+http://jx.ektao.cn/jx.php/?url=
+http://jx.618g.com/?url=
+http://api.greatchina56.com/?url=
+http://jx.sdjnd09.cn/jx.php/?url=
+http://okjx.cc/?url=
