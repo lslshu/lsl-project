@@ -100,7 +100,7 @@ git clone https://github.com/arut/nginx-rtmp-module.git
 备份原文件
 cp /usr/local/nginx/sbin/nginx /usr/local/nginx/sbin/nginx.bak
 替换nginx二进制文件
-cp -r nginx-1.16.0/objs/nginx /usr/local/nginx/sbin/nginx
+cp -r nginx-1.14.2/objs/nginx /usr/local/nginx/sbin/nginx
 检查配置文件
 sbin/nginx -t
 平滑重启
@@ -182,18 +182,18 @@ rpm -Uvh http://li.nux.ro/download/nux/dextop/el6/x86_64/nux-dextop-release-0-2.
 
 yum install ffmpeg ffmpeg-devel -y  
 
-一键按ffpmeg
-Centos
 
-yum groupinstall "Development Tools" -y
-yum remove gcc gcc-c++ -y
-yum install centos-release-scl hwloc-devel libmicrohttpd-devel openssl-devel -y
-yum install devtoolset-4-gcc* -y
-scl enable devtoolset-4 bash
-Debian/Ubuntu
-
-apt-get install -y git nettle-dev libgmp-dev libssh2-1-dev libc-ares-dev libxml2-dev zlib1g-dev libsqlite3-dev pkg-config libgpg-error-dev libssl-dev libexpat1-dev libxml2-dev libcppunit-dev autoconf automake autotools-dev autopoint libtool libxml2-dev openssl gettext
-apt-get install -y build-essential
+2.安装ffmpeg
+1) CentOS 7
+sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
+sudo rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
+2) CentOS 6
+sudo rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
+sudo rpm -Uvh http://li.nux.ro/download/nux/dextop/el6/x86_64/nux-dextop-release-0-2.el6.nux.noarch.rpm
+3)安装FFmpeg 和 FFmpeg开发包
+sudo yum install ffmpeg ffmpeg-devel -y
+4)测试是否安装成功
+ffmpeg
 
 脚本
 wget -q  https://raw.githubusercontent.com/Thnineer/Bash/master/ffmpeg.sh && chmod +x ffmpeg.sh && ./ffmpeg.sh
